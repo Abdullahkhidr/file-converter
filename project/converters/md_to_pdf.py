@@ -49,7 +49,8 @@ class MarkdownToPdfConverter:
         custom_css: Optional[str] = None,
         keep_html: bool = False,
         html_path: Optional[str] = None,
-        pdf_options: Optional[Dict[str, Any]] = None
+        pdf_options: Optional[Dict[str, Any]] = None,
+        text_direction: Optional[str] = None
     ) -> str:
         """
         Convert Markdown file to PDF.
@@ -63,6 +64,7 @@ class MarkdownToPdfConverter:
             keep_html: Whether to keep the intermediate HTML file
             html_path: Path to save the intermediate HTML file (if keep_html is True)
             pdf_options: Optional rendering options for PDF conversion
+            text_direction: Text direction for the document (ltr or rtl)
             
         Returns:
             Path to the converted PDF file
@@ -113,14 +115,16 @@ class MarkdownToPdfConverter:
                 html_path,
                 title=title,
                 use_default_css=use_default_css,
-                custom_css=custom_css
+                custom_css=custom_css,
+                text_direction=text_direction
             )
             
             # Step 2: Convert HTML to PDF
             pdf_result = self.html_to_pdf.convert_html_to_pdf(
                 html_path, 
                 output_path,
-                options=pdf_options
+                options=pdf_options,
+                text_direction=text_direction
             )
             
             logging.info(f"Converted {input_path} to {output_path}")
@@ -138,7 +142,8 @@ class MarkdownToPdfConverter:
         output_dir: str,
         use_default_css: bool = True,
         custom_css: Optional[str] = None,
-        keep_html: bool = False
+        keep_html: bool = False,
+        text_direction: Optional[str] = None
     ) -> List[str]:
         """
         Convert multiple Markdown files to PDF.
@@ -149,6 +154,7 @@ class MarkdownToPdfConverter:
             use_default_css: Whether to include default CSS styles
             custom_css: Optional custom CSS to include
             keep_html: Whether to keep intermediate HTML files
+            text_direction: Text direction for the documents (ltr or rtl)
             
         Returns:
             List of paths to the converted PDF files
@@ -179,7 +185,8 @@ class MarkdownToPdfConverter:
                     use_default_css=use_default_css,
                     custom_css=custom_css,
                     keep_html=keep_html,
-                    html_path=html_path
+                    html_path=html_path,
+                    text_direction=text_direction
                 )
                 
                 converted_files.append(result)

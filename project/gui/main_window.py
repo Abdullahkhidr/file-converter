@@ -651,79 +651,78 @@ class MarkdownToHtmlTab(ConverterTabBase):
     """Tab for converting Markdown to HTML."""
     
     def __init__(self, parent=None):
-        self.converter = MarkdownToHtmlConverter()
         super().__init__("Markdown to HTML Converter", parent)
+        self.md_converter = MarkdownToHtmlConverter()
     
     def setup_form(self):
         # File input section
-        self.add_file_input_section(
-            self.converter.SUPPORTED_INPUT_FORMATS,
-            "Input Markdown File"
-        )
+        self.add_file_input_section(["md", "markdown"], "Markdown File")
         
-        # Add output section
-        self.add_output_section(
-            default_format="html",
-            formats=self.converter.SUPPORTED_OUTPUT_FORMATS
-        )
+        # Additional options
+        options_group = QGroupBox("HTML Options")
+        options_layout = QVBoxLayout(options_group)
         
-        # Add styling options
-        style_group = QGroupBox("Styling Options")
-        style_layout = QVBoxLayout(style_group)
-        
-        # Title option
-        title_layout = QHBoxLayout()
-        title_label = QLabel("Document Title:")
-        title_layout.addWidget(title_label)
-        
-        self.title_edit = QLineEdit()
-        self.title_edit.setPlaceholderText("Auto (use filename)")
-        title_layout.addWidget(self.title_edit)
-        
-        style_layout.addLayout(title_layout)
-        
-        # CSS option
-        self.use_default_css = QCheckBox("Use Default CSS Styling")
+        # Style options
+        self.use_default_css = QCheckBox("Use default styles")
         self.use_default_css.setChecked(True)
-        style_layout.addWidget(self.use_default_css)
+        options_layout.addWidget(self.use_default_css)
         
-        self.form_layout.addWidget(style_group)
+        # Text direction selection
+        text_dir_layout = QHBoxLayout()
+        text_dir_layout.addWidget(QLabel("Text Direction:"))
+        
+        self.text_dir_combo = QComboBox()
+        self.text_dir_combo.addItem("Left to Right (LTR)", MarkdownToHtmlConverter.TEXT_DIRECTION_LTR)
+        self.text_dir_combo.addItem("Right to Left (RTL)", MarkdownToHtmlConverter.TEXT_DIRECTION_RTL)
+        text_dir_layout.addWidget(self.text_dir_combo)
+        options_layout.addLayout(text_dir_layout)
+        
+        self.form_layout.addWidget(options_group)
+        
+        # Output section
+        self.add_output_section()
+        
+        # Convert button
+        self.convert_button = QPushButton("Convert to HTML")
+        self.convert_button.setObjectName("primaryButton")
+        self.convert_button.clicked.connect(self.start_conversion)
+        self.convert_button.setEnabled(False)
+        self.form_layout.addWidget(self.convert_button)
     
     def start_conversion(self):
         """Start the Markdown to HTML conversion process."""
         if not self.input_file:
+            self.update_status("No input file selected", True)
             return
         
-        # Get output path
-        if self.output_dir:
-            filename = FileHandler.get_filename(self.input_file)
-            output_path = os.path.join(self.output_dir, f"{filename}.html")
+        # Set up output file path
+        if not self.output_dir:
+            output_dir = os.path.dirname(self.input_file)
         else:
-            output_path = None
+            output_dir = self.output_dir
         
-        # Get title if provided
-        title = self.title_edit.text().strip() or None
+        output_filename = f"{FileHandler.get_filename(self.input_file)}.html"
+        output_path = os.path.join(output_dir, output_filename)
         
-        # Set UI to busy state
+        # Get options
+        use_default_css = self.use_default_css.isChecked()
+        text_direction = self.text_dir_combo.currentData()
+        
         self.set_busy(True)
+        self.update_status("Converting Markdown to HTML...")
         
-        # Create worker thread
+        # Create and start worker thread
         self.worker = ConversionWorker(
-            self.converter.convert_md_to_html,
-            [self.input_file],
+            self.md_converter.convert_md_to_html,
+            [self.input_file, output_path],
             {
-                'output_path': output_path,
-                'title': title,
-                'use_default_css': self.use_default_css.isChecked()
+                "use_default_css": use_default_css,
+                "text_direction": text_direction
             }
         )
-        
-        # Connect signals
         self.worker.signals.result.connect(self.conversion_complete)
         self.worker.signals.error.connect(self.conversion_error)
-        self.worker.signals.finished.connect(self.worker.deleteLater)
-        
-        # Start the worker thread
+        self.worker.signals.finished.connect(self.cleanup)
         self.worker.start()
 
 
@@ -731,50 +730,69 @@ class HtmlToPdfTab(ConverterTabBase):
     """Tab for converting HTML to PDF."""
     
     def __init__(self, parent=None):
-        self.converter = HtmlToPdfConverter()
         super().__init__("HTML to PDF Converter", parent)
+        self.pdf_converter = HtmlToPdfConverter()
     
     def setup_form(self):
         # File input section
-        self.add_file_input_section(
-            self.converter.SUPPORTED_INPUT_FORMATS,
-            "Input HTML File"
-        )
+        self.add_file_input_section(["html", "htm"], "HTML File")
         
-        # Add output section
-        self.add_output_section(
-            default_format="pdf",
-            formats=self.converter.SUPPORTED_OUTPUT_FORMATS
-        )
+        # Additional options
+        options_group = QGroupBox("PDF Options")
+        options_layout = QVBoxLayout(options_group)
+        
+        # Text direction selection
+        text_dir_layout = QHBoxLayout()
+        text_dir_layout.addWidget(QLabel("Text Direction:"))
+        
+        self.text_dir_combo = QComboBox()
+        self.text_dir_combo.addItem("Left to Right (LTR)", HtmlToPdfConverter.TEXT_DIRECTION_LTR)
+        self.text_dir_combo.addItem("Right to Left (RTL)", HtmlToPdfConverter.TEXT_DIRECTION_RTL)
+        text_dir_layout.addWidget(self.text_dir_combo)
+        options_layout.addLayout(text_dir_layout)
+        
+        self.form_layout.addWidget(options_group)
+        
+        # Output section
+        self.add_output_section()
+        
+        # Convert button
+        self.convert_button = QPushButton("Convert to PDF")
+        self.convert_button.setObjectName("primaryButton")
+        self.convert_button.clicked.connect(self.start_conversion)
+        self.convert_button.setEnabled(False)
+        self.form_layout.addWidget(self.convert_button)
     
     def start_conversion(self):
         """Start the HTML to PDF conversion process."""
         if not self.input_file:
+            self.update_status("No input file selected", True)
             return
         
-        # Get output path
-        if self.output_dir:
-            filename = FileHandler.get_filename(self.input_file)
-            output_path = os.path.join(self.output_dir, f"{filename}.pdf")
+        # Set up output file path
+        if not self.output_dir:
+            output_dir = os.path.dirname(self.input_file)
         else:
-            output_path = None
+            output_dir = self.output_dir
         
-        # Set UI to busy state
+        output_filename = f"{FileHandler.get_filename(self.input_file)}.pdf"
+        output_path = os.path.join(output_dir, output_filename)
+        
+        # Get text direction
+        text_direction = self.text_dir_combo.currentData()
+        
         self.set_busy(True)
+        self.update_status("Converting HTML to PDF...")
         
-        # Create worker thread
+        # Create and start worker thread
         self.worker = ConversionWorker(
-            self.converter.convert_html_to_pdf,
-            [self.input_file],
-            {'output_path': output_path}
+            self.pdf_converter.convert_html_to_pdf,
+            [self.input_file, output_path],
+            {"text_direction": text_direction}
         )
-        
-        # Connect signals
         self.worker.signals.result.connect(self.conversion_complete)
         self.worker.signals.error.connect(self.conversion_error)
-        self.worker.signals.finished.connect(self.worker.deleteLater)
-        
-        # Start the worker thread
+        self.worker.signals.finished.connect(self.cleanup)
         self.worker.start()
 
 
@@ -782,85 +800,90 @@ class MarkdownToPdfTab(ConverterTabBase):
     """Tab for converting Markdown to PDF."""
     
     def __init__(self, parent=None):
-        self.converter = MarkdownToPdfConverter()
         super().__init__("Markdown to PDF Converter", parent)
+        self.md_pdf_converter = MarkdownToPdfConverter()
     
     def setup_form(self):
         # File input section
-        self.add_file_input_section(
-            self.converter.SUPPORTED_INPUT_FORMATS,
-            "Input Markdown File"
-        )
+        self.add_file_input_section(["md", "markdown"], "Markdown File")
         
-        # Add output section
-        self.add_output_section(
-            default_format="pdf",
-            formats=self.converter.SUPPORTED_OUTPUT_FORMATS
-        )
+        # Additional options
+        options_group = QGroupBox("PDF Options")
+        options_layout = QVBoxLayout(options_group)
         
-        # Add styling options
-        style_group = QGroupBox("Styling Options")
-        style_layout = QVBoxLayout(style_group)
-        
-        # Title option
-        title_layout = QHBoxLayout()
-        title_label = QLabel("Document Title:")
-        title_layout.addWidget(title_label)
-        
-        self.title_edit = QLineEdit()
-        self.title_edit.setPlaceholderText("Auto (use filename)")
-        title_layout.addWidget(self.title_edit)
-        
-        style_layout.addLayout(title_layout)
-        
-        # CSS option
-        self.use_default_css = QCheckBox("Use Default CSS Styling")
+        # Style options
+        self.use_default_css = QCheckBox("Use default styles")
         self.use_default_css.setChecked(True)
-        style_layout.addWidget(self.use_default_css)
+        options_layout.addWidget(self.use_default_css)
         
         # Keep HTML option
         self.keep_html = QCheckBox("Keep intermediate HTML file")
         self.keep_html.setChecked(False)
-        style_layout.addWidget(self.keep_html)
+        options_layout.addWidget(self.keep_html)
         
-        self.form_layout.addWidget(style_group)
+        # Text direction selection
+        text_dir_layout = QHBoxLayout()
+        text_dir_layout.addWidget(QLabel("Text Direction:"))
+        
+        self.text_dir_combo = QComboBox()
+        self.text_dir_combo.addItem("Left to Right (LTR)", MarkdownToHtmlConverter.TEXT_DIRECTION_LTR)
+        self.text_dir_combo.addItem("Right to Left (RTL)", MarkdownToHtmlConverter.TEXT_DIRECTION_RTL)
+        text_dir_layout.addWidget(self.text_dir_combo)
+        options_layout.addLayout(text_dir_layout)
+        
+        self.form_layout.addWidget(options_group)
+        
+        # Output section
+        self.add_output_section()
+        
+        # Convert button
+        self.convert_button = QPushButton("Convert to PDF")
+        self.convert_button.setObjectName("primaryButton")
+        self.convert_button.clicked.connect(self.start_conversion)
+        self.convert_button.setEnabled(False)
+        self.form_layout.addWidget(self.convert_button)
     
     def start_conversion(self):
         """Start the Markdown to PDF conversion process."""
         if not self.input_file:
+            self.update_status("No input file selected", True)
             return
         
-        # Get output path
-        if self.output_dir:
-            filename = FileHandler.get_filename(self.input_file)
-            output_path = os.path.join(self.output_dir, f"{filename}.pdf")
+        # Check if conversion is available
+        if not self.md_pdf_converter.is_available():
+            self.update_status("PDF conversion requires WeasyPrint to be installed", True)
+            return
+            
+        # Set up output file path
+        if not self.output_dir:
+            output_dir = os.path.dirname(self.input_file)
         else:
-            output_path = None
+            output_dir = self.output_dir
         
-        # Get title if provided
-        title = self.title_edit.text().strip() or None
+        output_filename = f"{FileHandler.get_filename(self.input_file)}.pdf"
+        output_path = os.path.join(output_dir, output_filename)
         
-        # Set UI to busy state
+        # Get options
+        use_default_css = self.use_default_css.isChecked()
+        keep_html = self.keep_html.isChecked()
+        text_direction = self.text_dir_combo.currentData()
+        
         self.set_busy(True)
+        self.update_status("Converting Markdown to PDF...")
         
-        # Create worker thread
+        # Create and start worker thread
         self.worker = ConversionWorker(
-            self.converter.convert_md_to_pdf,
-            [self.input_file],
+            self.md_pdf_converter.convert_md_to_pdf,
+            [self.input_file, output_path],
             {
-                'output_path': output_path,
-                'title': title,
-                'use_default_css': self.use_default_css.isChecked(),
-                'keep_html': self.keep_html.isChecked()
+                "use_default_css": use_default_css,
+                "keep_html": keep_html,
+                "text_direction": text_direction
             }
         )
-        
-        # Connect signals
         self.worker.signals.result.connect(self.conversion_complete)
         self.worker.signals.error.connect(self.conversion_error)
-        self.worker.signals.finished.connect(self.worker.deleteLater)
-        
-        # Start the worker thread
+        self.worker.signals.finished.connect(self.cleanup)
         self.worker.start()
 
 

@@ -27,6 +27,10 @@ class HtmlToPdfConverter:
     # Supported output formats
     SUPPORTED_OUTPUT_FORMATS = ["pdf"]
     
+    # Text direction options
+    TEXT_DIRECTION_LTR = "ltr"
+    TEXT_DIRECTION_RTL = "rtl"
+    
     # Default rendering options
     DEFAULT_OPTIONS = {
         "presentational_hints": True,
@@ -53,7 +57,8 @@ class HtmlToPdfConverter:
         output_path: Optional[str] = None,
         stylesheet: Optional[Union[str, List[str]]] = None,
         base_url: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None
+        options: Optional[Dict[str, Any]] = None,
+        text_direction: Optional[str] = None
     ) -> str:
         """
         Convert HTML file to PDF.
@@ -64,6 +69,7 @@ class HtmlToPdfConverter:
             stylesheet: Optional CSS stylesheets to apply (file path or list of paths)
             base_url: Base URL to resolve relative URLs in the HTML
             options: Optional rendering options
+            text_direction: Text direction for the PDF (ltr or rtl)
             
         Returns:
             Path to the converted PDF file
@@ -115,6 +121,12 @@ class HtmlToPdfConverter:
             else:
                 css_list = [weasyprint.CSS(filename=css_file) for css_file in stylesheet]
         
+        # Apply text direction if specified
+        if text_direction:
+            # Create a CSS object with the direction property
+            direction_css = weasyprint.CSS(string=f"html, body {{ direction: {text_direction}; }}")
+            css_list.append(direction_css)
+            
         # Load HTML and write to PDF
         html = weasyprint.HTML(filename=input_path, base_url=base_url)
         html.write_pdf(output_path, stylesheets=css_list if css_list else None, **render_options)
@@ -129,7 +141,8 @@ class HtmlToPdfConverter:
         output_path: str,
         stylesheet: Optional[Union[str, List[str]]] = None,
         base_url: Optional[str] = None,
-        options: Optional[Dict[str, Any]] = None
+        options: Optional[Dict[str, Any]] = None,
+        text_direction: Optional[str] = None
     ) -> str:
         """
         Convert HTML string to PDF.
@@ -140,6 +153,7 @@ class HtmlToPdfConverter:
             stylesheet: Optional CSS stylesheets to apply (file path or list of paths)
             base_url: Base URL to resolve relative URLs in the HTML
             options: Optional rendering options
+            text_direction: Text direction for the PDF (ltr or rtl)
             
         Returns:
             Path to the converted PDF file
@@ -170,6 +184,12 @@ class HtmlToPdfConverter:
             else:
                 css_list = [weasyprint.CSS(filename=css_file) for css_file in stylesheet]
         
+        # Apply text direction if specified
+        if text_direction:
+            # Create a CSS object with the direction property
+            direction_css = weasyprint.CSS(string=f"html, body {{ direction: {text_direction}; }}")
+            css_list.append(direction_css)
+            
         # Create temporary file for HTML content
         with tempfile.NamedTemporaryFile(suffix='.html', mode='w', encoding='utf-8', delete=False) as f:
             f.write(html_string)
@@ -198,7 +218,8 @@ class HtmlToPdfConverter:
         self,
         input_files: List[str],
         output_dir: str,
-        stylesheet: Optional[Union[str, List[str]]] = None
+        stylesheet: Optional[Union[str, List[str]]] = None,
+        text_direction: Optional[str] = None
     ) -> List[str]:
         """
         Convert multiple HTML files to PDF.
@@ -207,6 +228,7 @@ class HtmlToPdfConverter:
             input_files: List of paths to input HTML files
             output_dir: Directory to save converted PDF files
             stylesheet: Optional CSS stylesheet(s) to apply
+            text_direction: Text direction for the PDF (ltr or rtl)
             
         Returns:
             List of paths to the converted PDF files
@@ -232,7 +254,8 @@ class HtmlToPdfConverter:
             converted_path = self.convert_html_to_pdf(
                 input_file, 
                 output_path,
-                stylesheet=stylesheet
+                stylesheet=stylesheet,
+                text_direction=text_direction
             )
             
             if converted_path:

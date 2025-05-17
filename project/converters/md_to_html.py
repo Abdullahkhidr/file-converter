@@ -18,6 +18,10 @@ class MarkdownToHtmlConverter:
     # Supported output formats
     SUPPORTED_OUTPUT_FORMATS = ["html"]
     
+    # Text direction options
+    TEXT_DIRECTION_LTR = "ltr"
+    TEXT_DIRECTION_RTL = "rtl"
+    
     # Default Markdown extensions to use
     DEFAULT_EXTENSIONS = [
         'markdown.extensions.tables',
@@ -108,7 +112,8 @@ class MarkdownToHtmlConverter:
         title: Optional[str] = None,
         use_default_css: bool = True,
         custom_css: Optional[str] = None,
-        extensions: Optional[List[str]] = None
+        extensions: Optional[List[str]] = None,
+        text_direction: Optional[str] = None
     ) -> str:
         """
         Convert Markdown file to HTML.
@@ -120,6 +125,7 @@ class MarkdownToHtmlConverter:
             use_default_css: Whether to include default CSS styles
             custom_css: Optional custom CSS styles to include
             extensions: Optional list of Markdown extensions to use
+            text_direction: Text direction for the HTML (ltr or rtl)
             
         Returns:
             Path to the converted HTML file
@@ -166,16 +172,24 @@ class MarkdownToHtmlConverter:
             css += f"<style>{MarkdownToHtmlConverter.DEFAULT_CSS}</style>"
         if custom_css:
             css += f"<style>{custom_css}</style>"
+            
+        # Add direction CSS if specified
+        direction_attr = ""
+        direction_css = ""
+        if text_direction:
+            direction_attr = f' dir="{text_direction}"'
+            direction_css = f"<style>html, body {{ direction: {text_direction}; }}</style>"
+            css += direction_css
         
         html_content = f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="en"{direction_attr}>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title}</title>
     {css}
 </head>
-<body>
+<body{direction_attr}>
 {html_body}
 </body>
 </html>
@@ -194,7 +208,8 @@ class MarkdownToHtmlConverter:
         input_files: List[str],
         output_dir: str,
         use_default_css: bool = True,
-        custom_css: Optional[str] = None
+        custom_css: Optional[str] = None,
+        text_direction: Optional[str] = None
     ) -> List[str]:
         """
         Convert multiple Markdown files to HTML.
@@ -204,6 +219,7 @@ class MarkdownToHtmlConverter:
             output_dir: Directory to save converted HTML files
             use_default_css: Whether to include default CSS styles
             custom_css: Optional custom CSS to include
+            text_direction: Text direction for the HTML (ltr or rtl)
             
         Returns:
             List of paths to the converted HTML files
@@ -217,16 +233,17 @@ class MarkdownToHtmlConverter:
             output_path = os.path.join(output_dir, f"{filename}.html")
             
             # Convert the Markdown file
-            success, result = self.convert_md_to_html(
-                input_file, 
-                output_path,
-                use_default_css=use_default_css,
-                custom_css=custom_css
-            )
-            
-            if success:
+            try:
+                result = self.convert_md_to_html(
+                    input_file, 
+                    output_path,
+                    use_default_css=use_default_css,
+                    custom_css=custom_css,
+                    text_direction=text_direction
+                )
+                
                 converted_files.append(result)
-            else:
-                logging.error(f"Failed to convert {input_file}: {result}")
+            except Exception as e:
+                logging.error(f"Failed to convert {input_file}: {str(e)}")
         
         return converted_files 
