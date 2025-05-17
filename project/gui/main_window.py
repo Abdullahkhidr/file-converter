@@ -10,9 +10,9 @@ from PyQt6.QtWidgets import (
     QMainWindow, QApplication, QWidget, QTabWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QLineEdit, QFileDialog, QComboBox, QProgressBar,
     QMessageBox, QScrollArea, QFrame, QGridLayout, QSpacerItem, QSizePolicy,
-    QCheckBox, QGroupBox, QRadioButton, QButtonGroup
+    QCheckBox, QGroupBox, QRadioButton, QButtonGroup, QSlider
 )
-from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal, QTimer, QSettings, QUrl
+from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal, QTimer, QSettings, QUrl, QObject
 from PyQt6.QtGui import QIcon, QPixmap, QDragEnterEvent, QDropEvent
 
 from project.gui.styles import StyleManager, AppTheme
@@ -342,19 +342,31 @@ class ConverterTabBase(QWidget):
         self.set_busy(False)
         
         if result:
-            self.update_status(f"Conversion complete: {os.path.basename(result)}")
+            # Unpack tuple if result is a tuple (for backward compatibility)
+            if isinstance(result, tuple) and len(result) >= 2:
+                success, file_path = result[:2]
+                if not success:
+                    # This is an error message
+                    self.conversion_error(file_path)
+                    return
+                result = file_path
             
-            # Ask if user wants to open the file
-            reply = QMessageBox.question(
-                self, 
-                "Conversion Complete", 
-                f"The file has been converted successfully. Do you want to open the output file?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.Yes
-            )
-            
-            if reply == QMessageBox.StandardButton.Yes:
-                self.open_file(result)
+            if isinstance(result, str) and os.path.exists(result):
+                self.update_status(f"Conversion complete: {os.path.basename(result)}")
+                
+                # Ask if user wants to open the file
+                reply = QMessageBox.question(
+                    self, 
+                    "Conversion Complete", 
+                    f"The file has been converted successfully. Do you want to open the output file?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.Yes
+                )
+                
+                if reply == QMessageBox.StandardButton.Yes:
+                    self.open_file(result)
+            else:
+                self.update_status("Conversion complete")
     
     def conversion_error(self, error_message: str):
         """Handle conversion error."""
@@ -370,6 +382,18 @@ class ConverterTabBase(QWidget):
     
     def open_file(self, file_path: str):
         """Open a file with the default application."""
+        # Handle tuple for backward compatibility
+        if isinstance(file_path, tuple) and len(file_path) >= 2:
+            success, path = file_path[:2]
+            if not success:
+                QMessageBox.warning(
+                    self, 
+                    "File Not Found", 
+                    f"Could not open the file: {path}"
+                )
+                return
+            file_path = path
+        
         if not os.path.exists(file_path):
             QMessageBox.warning(
                 self, 
@@ -392,9 +416,13 @@ class ConverterTabBase(QWidget):
     
     def cleanup(self):
         """Clean up resources used by the tab."""
-        if self.worker and self.worker.isRunning():
-            self.worker.terminate()
-            self.worker.wait()
+        try:
+            if self.worker and self.worker.isRunning():
+                self.worker.terminate()
+                self.worker.wait()
+        except (RuntimeError, AttributeError):
+            # Handle the case where the worker object has been deleted or corrupted
+            pass
 
 
 class ImageConverterTab(ConverterTabBase):
@@ -872,24 +900,43 @@ class MainWindow(QMainWindow):
         # Create tab widget
         self.tab_widget = QTabWidget()
         
-        # Create converter tabs
+        # Create converter tabs that are always available
         self.image_tab = ImageConverterTab()
         self.pdf_word_tab = PdfToWordTab()
         self.md_html_tab = MarkdownToHtmlTab()
-        self.html_pdf_tab = HtmlToPdfTab()
-        self.md_pdf_tab = MarkdownToPdfTab()
         
-        # Add tabs
+        # Add always-available tabs
         self.tab_widget.addTab(self.image_tab, "Image Converter")
         self.tab_widget.addTab(self.pdf_word_tab, "PDF to Word")
         self.tab_widget.addTab(self.md_html_tab, "Markdown to HTML")
-        self.tab_widget.addTab(self.html_pdf_tab, "HTML to PDF")
-        self.tab_widget.addTab(self.md_pdf_tab, "Markdown to PDF")
+        
+        # Check if HTML to PDF conversion is available (depends on WeasyPrint)
+        html_to_pdf_available = HtmlToPdfConverter.is_available()
+        md_to_pdf_available = MarkdownToPdfConverter.is_available()
+        
+        # Conditionally create and add tabs that depend on WeasyPrint
+        if html_to_pdf_available:
+            self.html_pdf_tab = HtmlToPdfTab()
+            self.tab_widget.addTab(self.html_pdf_tab, "HTML to PDF")
+        else:
+            self.html_pdf_tab = None
+            
+        if md_to_pdf_available:
+            self.md_pdf_tab = MarkdownToPdfTab()
+            self.tab_widget.addTab(self.md_pdf_tab, "Markdown to PDF")
+        else:
+            self.md_pdf_tab = None
         
         layout.addWidget(self.tab_widget)
         
         # Status bar
         self.statusBar().showMessage("Ready")
+        
+        # Show message if some converters are not available
+        if not html_to_pdf_available or not md_to_pdf_available:
+            message = "Some conversion features are not available due to missing dependencies. "
+            message += "To enable HTML to PDF and Markdown to PDF conversion, please install WeasyPrint and its dependencies."
+            QTimer.singleShot(500, lambda: QMessageBox.warning(self, "Missing Dependencies", message))
     
     def load_settings(self):
         """Load and apply user settings."""
@@ -908,7 +955,10 @@ class MainWindow(QMainWindow):
         
         # Remember last tab
         last_tab = self.settings.value("last_tab", 0)
-        self.tab_widget.setCurrentIndex(int(last_tab) if isinstance(last_tab, (int, str)) else 0)
+        tab_index = int(last_tab) if isinstance(last_tab, (int, str)) else 0
+        # Make sure the index is valid
+        if 0 <= tab_index < self.tab_widget.count():
+            self.tab_widget.setCurrentIndex(tab_index)
     
     def save_settings(self):
         """Save user settings."""
@@ -916,14 +966,21 @@ class MainWindow(QMainWindow):
         self.settings.setValue("last_tab", self.tab_widget.currentIndex())
         
         # Save last used directories for each tab if available
-        for tab_name, tab in [
+        tab_configs = [
             ("image", self.image_tab), 
             ("pdf_word", self.pdf_word_tab), 
-            ("md_html", self.md_html_tab),
-            ("html_pdf", self.html_pdf_tab),
-            ("md_pdf", self.md_pdf_tab)
-        ]:
-            if tab.output_dir:
+            ("md_html", self.md_html_tab)
+        ]
+        
+        # Add conditional tabs if they exist
+        if self.html_pdf_tab:
+            tab_configs.append(("html_pdf", self.html_pdf_tab))
+        if self.md_pdf_tab:
+            tab_configs.append(("md_pdf", self.md_pdf_tab))
+        
+        # Save directory for each tab
+        for tab_name, tab in tab_configs:
+            if tab and tab.output_dir:
                 self.settings.setValue(f"last_dir_{tab_name}", tab.output_dir)
     
     def center_on_screen(self):
@@ -938,17 +995,17 @@ class MainWindow(QMainWindow):
         # Save settings
         self.save_settings()
         
-        # Clean up tab resources
-        for tab in [
-            self.image_tab, 
-            self.pdf_word_tab, 
-            self.md_html_tab,
-            self.html_pdf_tab,
-            self.md_pdf_tab
-        ]:
+        # Clean up tab resources for tabs that exist
+        tabs = [self.image_tab, self.pdf_word_tab, self.md_html_tab]
+        
+        # Add conditional tabs if they exist
+        if self.html_pdf_tab:
+            tabs.append(self.html_pdf_tab)
+        if self.md_pdf_tab:
+            tabs.append(self.md_pdf_tab)
+        
+        # Cleanup each tab
+        for tab in tabs:
             tab.cleanup()
         
-        event.accept()
-
-
-from PyQt6.QtCore import QObject 
+        event.accept() 

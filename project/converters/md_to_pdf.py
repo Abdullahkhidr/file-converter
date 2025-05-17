@@ -28,6 +28,12 @@ class MarkdownToPdfConverter:
             "output": MarkdownToPdfConverter.SUPPORTED_OUTPUT_FORMATS
         }
     
+    @staticmethod
+    def is_available() -> bool:
+        """Check if Markdown to PDF conversion is available."""
+        # This converter depends on HtmlToPdfConverter
+        return HtmlToPdfConverter.is_available()
+    
     def __init__(self):
         """Initialize the converters needed for the conversion pipeline."""
         self.md_to_html = MarkdownToHtmlConverter()
@@ -65,7 +71,14 @@ class MarkdownToPdfConverter:
             ValueError: If input file is not a supported format
             FileNotFoundError: If input file doesn't exist
             OSError: If there's an issue writing the output file
+            RuntimeError: If HTML to PDF conversion is not available
         """
+        # Check if HTML to PDF conversion is available
+        if not HtmlToPdfConverter.is_available():
+            raise RuntimeError(
+                "HTML to PDF conversion is not available. Please install all required dependencies for WeasyPrint to use this feature."
+            )
+            
         # Validate input file
         valid, error_msg = FileHandler.validate_file(
             input_path, 
@@ -95,7 +108,7 @@ class MarkdownToPdfConverter:
         
         try:
             # Step 1: Convert Markdown to HTML
-            success, html_result = self.md_to_html.convert_md_to_html(
+            html_result = self.md_to_html.convert_md_to_html(
                 input_path, 
                 html_path,
                 title=title,
@@ -103,18 +116,12 @@ class MarkdownToPdfConverter:
                 custom_css=custom_css
             )
             
-            if not success:
-                raise ValueError(f"Failed to convert Markdown to HTML: {html_result}")
-            
             # Step 2: Convert HTML to PDF
-            success, pdf_result = self.html_to_pdf.convert_html_to_pdf(
+            pdf_result = self.html_to_pdf.convert_html_to_pdf(
                 html_path, 
                 output_path,
                 options=pdf_options
             )
-            
-            if not success:
-                raise ValueError(f"Failed to convert HTML to PDF: {pdf_result}")
             
             logging.info(f"Converted {input_path} to {output_path}")
             return pdf_result
@@ -145,7 +152,16 @@ class MarkdownToPdfConverter:
             
         Returns:
             List of paths to the converted PDF files
+            
+        Raises:
+            RuntimeError: If HTML to PDF conversion is not available
         """
+        # Check if HTML to PDF conversion is available
+        if not HtmlToPdfConverter.is_available():
+            raise RuntimeError(
+                "HTML to PDF conversion is not available. Please install all required dependencies for WeasyPrint to use this feature."
+            )
+            
         FileHandler.ensure_directory_exists(output_dir)
         
         converted_files = []
@@ -155,19 +171,19 @@ class MarkdownToPdfConverter:
             pdf_path = os.path.join(output_dir, f"{filename}.pdf")
             html_path = os.path.join(output_dir, f"{filename}.html") if keep_html else None
             
-            # Convert the Markdown file to PDF
-            success, result = self.convert_md_to_pdf(
-                input_file, 
-                pdf_path,
-                use_default_css=use_default_css,
-                custom_css=custom_css,
-                keep_html=keep_html,
-                html_path=html_path
-            )
-            
-            if success:
+            try:
+                # Convert the Markdown file to PDF
+                result = self.convert_md_to_pdf(
+                    input_file, 
+                    pdf_path,
+                    use_default_css=use_default_css,
+                    custom_css=custom_css,
+                    keep_html=keep_html,
+                    html_path=html_path
+                )
+                
                 converted_files.append(result)
-            else:
-                logging.error(f"Failed to convert {input_file}: {result}")
+            except Exception as e:
+                logging.error(f"Failed to convert {input_file}: {str(e)}")
         
         return converted_files 

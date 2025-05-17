@@ -1,10 +1,18 @@
 import os
 import logging
 import tempfile
+import warnings
 from typing import Optional, List, Dict, Tuple, Any, Union
-import weasyprint
 from project.utils.error_handler import ErrorHandler
 from project.utils.file_handler import FileHandler
+
+# Try to import WeasyPrint, but make it optional
+try:
+    import weasyprint
+    WEASYPRINT_AVAILABLE = True
+except (ImportError, OSError) as e:
+    WEASYPRINT_AVAILABLE = False
+    warnings.warn(f"WeasyPrint is not available: {e}. HTML to PDF conversion will be disabled.")
 
 
 class HtmlToPdfConverter:
@@ -33,6 +41,11 @@ class HtmlToPdfConverter:
             "output": HtmlToPdfConverter.SUPPORTED_OUTPUT_FORMATS
         }
     
+    @staticmethod
+    def is_available() -> bool:
+        """Check if HTML to PDF conversion is available."""
+        return WEASYPRINT_AVAILABLE
+    
     @ErrorHandler.handle_exception
     def convert_html_to_pdf(
         self,
@@ -59,7 +72,14 @@ class HtmlToPdfConverter:
             ValueError: If input file is not a supported format
             FileNotFoundError: If input file doesn't exist
             OSError: If there's an issue writing the output file
+            RuntimeError: If WeasyPrint is not available
         """
+        # Check if WeasyPrint is available
+        if not WEASYPRINT_AVAILABLE:
+            raise RuntimeError(
+                "WeasyPrint is not available. Please install all required dependencies for WeasyPrint to use this feature."
+            )
+            
         # Validate input file
         valid, error_msg = FileHandler.validate_file(
             input_path, 
@@ -123,7 +143,16 @@ class HtmlToPdfConverter:
             
         Returns:
             Path to the converted PDF file
+            
+        Raises:
+            RuntimeError: If WeasyPrint is not available
         """
+        # Check if WeasyPrint is available
+        if not WEASYPRINT_AVAILABLE:
+            raise RuntimeError(
+                "WeasyPrint is not available. Please install all required dependencies for WeasyPrint to use this feature."
+            )
+            
         # Ensure output directory exists
         output_dir = os.path.dirname(output_path)
         FileHandler.ensure_directory_exists(output_dir)
@@ -181,7 +210,16 @@ class HtmlToPdfConverter:
             
         Returns:
             List of paths to the converted PDF files
+            
+        Raises:
+            RuntimeError: If WeasyPrint is not available
         """
+        # Check if WeasyPrint is available
+        if not WEASYPRINT_AVAILABLE:
+            raise RuntimeError(
+                "WeasyPrint is not available. Please install all required dependencies for WeasyPrint to use this feature."
+            )
+            
         FileHandler.ensure_directory_exists(output_dir)
         
         converted_files = []
@@ -191,15 +229,15 @@ class HtmlToPdfConverter:
             output_path = os.path.join(output_dir, f"{filename}.pdf")
             
             # Convert the HTML file
-            success, result = self.convert_html_to_pdf(
+            converted_path = self.convert_html_to_pdf(
                 input_file, 
                 output_path,
                 stylesheet=stylesheet
             )
             
-            if success:
-                converted_files.append(result)
+            if converted_path:
+                converted_files.append(converted_path)
             else:
-                logging.error(f"Failed to convert {input_file}: {result}")
+                logging.error(f"Failed to convert {input_file}")
         
         return converted_files 

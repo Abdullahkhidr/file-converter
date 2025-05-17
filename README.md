@@ -1,116 +1,90 @@
 # File Converter
 
-A powerful file conversion tool with a modern macOS-optimized GUI. Convert between various file formats with a simple, clean interface.
+A powerful file conversion tool with a modern macOS GUI.
 
 ## Features
 
-- **Image Converter**: Convert between PNG, JPEG, BMP, GIF, and TIFF formats
-- **PDF to Word**: Convert PDF documents to editable Word (.docx) files
-- **Markdown to HTML**: Convert Markdown files to HTML with customizable styling
-- **HTML to PDF**: Convert HTML files to PDF documents
-- **Markdown to PDF**: Convert Markdown files directly to PDF
+- Convert images between different formats (PNG, JPG, GIF, etc.)
+- Convert PDF to Word documents
+- Convert Markdown to HTML
+- Convert HTML to PDF
+- Convert Markdown to PDF
 
 ## Installation
 
-### Requirements
+### Prerequisites
 
 - Python 3.10 or higher
-- macOS (optimized for macOS, but should work on other platforms)
+- macOS 10.15 or higher
 
-### Setup
+### Install Dependencies
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/file-converter.git
-   cd file-converter
-   ```
-
-2. Create a virtual environment (recommended):
-   ```
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+1. Install Homebrew if not already installed:
+   ```bash
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
    ```
 
-3. Install dependencies:
+2. Install required system libraries:
+   ```bash
+   brew install pango cairo fontconfig libffi gobject-introspection
    ```
-   pip install -r requirements.txt
+
+3. Install the Python package:
+   ```bash
+   pip install -e .
    ```
 
-### Running the Application
+### Fix WeasyPrint for HTML to PDF Conversion
 
-From the project root directory:
+If the HTML to PDF or Markdown to PDF conversion features aren't working, run the fix script:
 
-```
-python -m project.main
-```
-
-## Usage
-
-1. Select the appropriate converter tab for your needs
-2. Drag and drop a file onto the input area or use the Browse button to select a file
-3. Configure conversion options (if applicable)
-4. Select an output directory (optional - defaults to the same location as the input file)
-5. Click the Convert button
-
-## Supported Formats
-
-### Image Converter
-- Input: PNG, JPEG/JPG, BMP, GIF, TIFF/TIF
-- Output: PNG, JPEG/JPG, BMP, GIF, TIFF/TIF
-
-### PDF to Word
-- Input: PDF
-- Output: DOCX
-
-### Markdown to HTML
-- Input: MD, MARKDOWN
-- Output: HTML
-
-### HTML to PDF
-- Input: HTML, HTM
-- Output: PDF
-
-### Markdown to PDF
-- Input: MD, MARKDOWN
-- Output: PDF
-
-## Development
-
-### Project Structure
-
-```
-project/
-├── converters/         # Conversion modules
-│   ├── image_converter.py
-│   ├── pdf_to_word.py
-│   ├── md_to_html.py
-│   ├── html_to_pdf.py
-│   └── md_to_pdf.py
-├── gui/                # GUI components
-│   ├── main_window.py
-│   └── styles.py
-├── utils/              # Utility functions
-│   ├── file_handler.py
-│   └── error_handler.py
-├── tests/              # Test suite
-├── main.py             # Application entry point
-└── requirements.txt    # Dependencies
+```bash
+python3 fix_weasyprint.py
 ```
 
-### Running Tests
+This script will:
+- Set the correct environment variables
+- Reinstall WeasyPrint with the proper configuration
+- Provide instructions for permanently setting the environment variables
 
+## Running the Application
+
+For the best experience, use the provided shell script which sets up the environment:
+
+```bash
+./run_converter.sh
 ```
-pytest project/tests/
+
+Or manually with:
+
+```bash
+export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/opt/homebrew/opt/libffi/lib/pkgconfig:/opt/homebrew/opt/libxml2/lib/pkgconfig"
+export LDFLAGS="-L/opt/homebrew/lib -L/opt/homebrew/opt/libffi/lib"
+export CPPFLAGS="-I/opt/homebrew/include -I/opt/homebrew/opt/libffi/include"
+export DYLD_LIBRARY_PATH="/opt/homebrew/lib"
+export PYTHONPATH="$(pwd)"
+python3 project/main.py
 ```
 
-## Adding New Converters
+## Troubleshooting
 
-To add a new converter:
+### HTML to PDF Conversion Not Working
 
-1. Create a new converter class in the `converters` directory
-2. Add an appropriate tab class in `gui/main_window.py`
-3. Register the new tab in the `MainWindow` class
+If you see an error about WeasyPrint not being able to find libraries:
+
+1. Run the fix script: `python3 fix_weasyprint.py`
+2. Add the recommended environment variables to your `~/.zshrc`
+3. Use the `run_converter.sh` script to start the application
+
+### Application Not Starting
+
+Make sure you've installed all the dependencies and are using the correct Python version:
+
+```bash
+python3 --version  # Should be 3.10 or higher
+pip install -e .   # Reinstall the package
+```
 
 ## License
 
-[MIT License](LICENSE) 
+MIT 

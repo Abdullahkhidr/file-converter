@@ -1,0 +1,2 @@
+[console_scripts]
+file-converter = project.main:main
