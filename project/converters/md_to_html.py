@@ -4,6 +4,7 @@ import markdown
 from typing import Optional, List, Dict, Any, Tuple
 from project.utils.error_handler import ErrorHandler
 from project.utils.file_handler import FileHandler
+from project.utils.style_manager import CustomStyleManager
 
 
 class MarkdownToHtmlConverter:
@@ -32,7 +33,7 @@ class MarkdownToHtmlConverter:
         'markdown.extensions.nl2br'
     ]
     
-    # Default CSS styles for HTML output
+    # Default CSS styles for HTML output - kept for backward compatibility
     DEFAULT_CSS = """
     body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
@@ -168,8 +169,16 @@ class MarkdownToHtmlConverter:
         
         # Create complete HTML document
         css = ""
+        # Use custom styles from CustomStyleManager instead of default CSS
         if use_default_css:
-            css += f"<style>{MarkdownToHtmlConverter.DEFAULT_CSS}</style>"
+            custom_css_content = CustomStyleManager.get_custom_css_content()
+            if custom_css_content:
+                css += f"<style>{custom_css_content}</style>"
+            else:
+                # Fallback to DEFAULT_CSS if custom styles not available
+                css += f"<style>{MarkdownToHtmlConverter.DEFAULT_CSS}</style>"
+                
+        # Add any additional custom CSS
         if custom_css:
             css += f"<style>{custom_css}</style>"
             

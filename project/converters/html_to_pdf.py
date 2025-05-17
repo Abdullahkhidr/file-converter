@@ -5,6 +5,7 @@ import warnings
 from typing import Optional, List, Dict, Tuple, Any, Union
 from project.utils.error_handler import ErrorHandler
 from project.utils.file_handler import FileHandler
+from project.utils.style_manager import CustomStyleManager
 
 # Try to import WeasyPrint, but make it optional
 try:
@@ -34,7 +35,6 @@ class HtmlToPdfConverter:
     # Default rendering options
     DEFAULT_OPTIONS = {
         "presentational_hints": True,
-        "optimize_size": ('fonts', 'images'),
     }
     
     @staticmethod
@@ -58,7 +58,8 @@ class HtmlToPdfConverter:
         stylesheet: Optional[Union[str, List[str]]] = None,
         base_url: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
-        text_direction: Optional[str] = None
+        text_direction: Optional[str] = None,
+        use_custom_css: bool = True
     ) -> str:
         """
         Convert HTML file to PDF.
@@ -70,6 +71,7 @@ class HtmlToPdfConverter:
             base_url: Base URL to resolve relative URLs in the HTML
             options: Optional rendering options
             text_direction: Text direction for the PDF (ltr or rtl)
+            use_custom_css: Whether to use the custom CSS styles
             
         Returns:
             Path to the converted PDF file
@@ -115,11 +117,19 @@ class HtmlToPdfConverter:
         
         # Load CSS if provided
         css_list = []
+        
+        # Apply custom CSS if requested
+        if use_custom_css:
+            custom_css_path = CustomStyleManager.get_custom_css_path()
+            if os.path.exists(custom_css_path):
+                css_list.append(weasyprint.CSS(filename=custom_css_path))
+        
+        # Add additional stylesheets if provided
         if stylesheet:
             if isinstance(stylesheet, str):
-                css_list = [weasyprint.CSS(filename=stylesheet)]
+                css_list.append(weasyprint.CSS(filename=stylesheet))
             else:
-                css_list = [weasyprint.CSS(filename=css_file) for css_file in stylesheet]
+                css_list.extend([weasyprint.CSS(filename=css_file) for css_file in stylesheet])
         
         # Apply text direction if specified
         if text_direction:
@@ -142,7 +152,8 @@ class HtmlToPdfConverter:
         stylesheet: Optional[Union[str, List[str]]] = None,
         base_url: Optional[str] = None,
         options: Optional[Dict[str, Any]] = None,
-        text_direction: Optional[str] = None
+        text_direction: Optional[str] = None,
+        use_custom_css: bool = True
     ) -> str:
         """
         Convert HTML string to PDF.
@@ -154,6 +165,7 @@ class HtmlToPdfConverter:
             base_url: Base URL to resolve relative URLs in the HTML
             options: Optional rendering options
             text_direction: Text direction for the PDF (ltr or rtl)
+            use_custom_css: Whether to use the custom CSS styles
             
         Returns:
             Path to the converted PDF file
@@ -178,11 +190,19 @@ class HtmlToPdfConverter:
         
         # Load CSS if provided
         css_list = []
+        
+        # Apply custom CSS if requested
+        if use_custom_css:
+            custom_css_path = CustomStyleManager.get_custom_css_path()
+            if os.path.exists(custom_css_path):
+                css_list.append(weasyprint.CSS(filename=custom_css_path))
+        
+        # Add additional stylesheets if provided
         if stylesheet:
             if isinstance(stylesheet, str):
-                css_list = [weasyprint.CSS(filename=stylesheet)]
+                css_list.append(weasyprint.CSS(filename=stylesheet))
             else:
-                css_list = [weasyprint.CSS(filename=css_file) for css_file in stylesheet]
+                css_list.extend([weasyprint.CSS(filename=css_file) for css_file in stylesheet])
         
         # Apply text direction if specified
         if text_direction:
@@ -219,7 +239,8 @@ class HtmlToPdfConverter:
         input_files: List[str],
         output_dir: str,
         stylesheet: Optional[Union[str, List[str]]] = None,
-        text_direction: Optional[str] = None
+        text_direction: Optional[str] = None,
+        use_custom_css: bool = True
     ) -> List[str]:
         """
         Convert multiple HTML files to PDF.
@@ -229,6 +250,7 @@ class HtmlToPdfConverter:
             output_dir: Directory to save converted PDF files
             stylesheet: Optional CSS stylesheet(s) to apply
             text_direction: Text direction for the PDF (ltr or rtl)
+            use_custom_css: Whether to use the custom CSS styles
             
         Returns:
             List of paths to the converted PDF files
@@ -255,7 +277,8 @@ class HtmlToPdfConverter:
                 input_file, 
                 output_path,
                 stylesheet=stylesheet,
-                text_direction=text_direction
+                text_direction=text_direction,
+                use_custom_css=use_custom_css
             )
             
             if converted_path:

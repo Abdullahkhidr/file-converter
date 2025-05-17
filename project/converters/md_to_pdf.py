@@ -120,11 +120,14 @@ class MarkdownToPdfConverter:
             )
             
             # Step 2: Convert HTML to PDF
+            # For the PDF conversion, we use the custom CSS if enabled in the GUI
+            # since the HTML already has the styles from the first conversion step
             pdf_result = self.html_to_pdf.convert_html_to_pdf(
                 html_path, 
                 output_path,
                 options=pdf_options,
-                text_direction=text_direction
+                text_direction=text_direction,
+                use_custom_css=False  # Don't apply it twice
             )
             
             logging.info(f"Converted {input_path} to {output_path}")

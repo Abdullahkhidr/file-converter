@@ -663,7 +663,7 @@ class MarkdownToHtmlTab(ConverterTabBase):
         options_layout = QVBoxLayout(options_group)
         
         # Style options
-        self.use_default_css = QCheckBox("Use default styles")
+        self.use_default_css = QCheckBox("Use custom styles")
         self.use_default_css.setChecked(True)
         options_layout.addWidget(self.use_default_css)
         
@@ -741,6 +741,11 @@ class HtmlToPdfTab(ConverterTabBase):
         options_group = QGroupBox("PDF Options")
         options_layout = QVBoxLayout(options_group)
         
+        # Use custom CSS option
+        self.use_custom_css = QCheckBox("Use custom styles")
+        self.use_custom_css.setChecked(True)
+        options_layout.addWidget(self.use_custom_css)
+        
         # Text direction selection
         text_dir_layout = QHBoxLayout()
         text_dir_layout.addWidget(QLabel("Text Direction:"))
@@ -778,8 +783,9 @@ class HtmlToPdfTab(ConverterTabBase):
         output_filename = f"{FileHandler.get_filename(self.input_file)}.pdf"
         output_path = os.path.join(output_dir, output_filename)
         
-        # Get text direction
+        # Get options
         text_direction = self.text_dir_combo.currentData()
+        use_custom_css = self.use_custom_css.isChecked()
         
         self.set_busy(True)
         self.update_status("Converting HTML to PDF...")
@@ -788,7 +794,10 @@ class HtmlToPdfTab(ConverterTabBase):
         self.worker = ConversionWorker(
             self.pdf_converter.convert_html_to_pdf,
             [self.input_file, output_path],
-            {"text_direction": text_direction}
+            {
+                "text_direction": text_direction,
+                "use_custom_css": use_custom_css
+            }
         )
         self.worker.signals.result.connect(self.conversion_complete)
         self.worker.signals.error.connect(self.conversion_error)
@@ -812,7 +821,7 @@ class MarkdownToPdfTab(ConverterTabBase):
         options_layout = QVBoxLayout(options_group)
         
         # Style options
-        self.use_default_css = QCheckBox("Use default styles")
+        self.use_default_css = QCheckBox("Use custom styles")
         self.use_default_css.setChecked(True)
         options_layout.addWidget(self.use_default_css)
         
